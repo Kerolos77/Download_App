@@ -1,17 +1,16 @@
 package com.udacity
 
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
 import androidx.core.app.NotificationCompat
 
 
 private val NOTIFICATION_ID = 0
-private val REQUEST_CODE = 0
-private var FLAGS = 0
 
+@SuppressLint("UnspecifiedImmutableFlag")
 fun NotificationManager.sendNotification(
     messageBody: String,
     applicationContext: Context,
@@ -50,12 +49,9 @@ fun NotificationManager.sendNotification(
             .setAutoCancel(true)
             .addAction(
                 R.drawable.ic_baseline_download_done_24,
-                applicationContext.getString(R.string.show),
+                applicationContext.getString(R.string.show_details),
                 contentPendingIntent
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
     notify(NOTIFICATION_ID, builder.build())
-}
-fun NotificationManager.cancelNotifications() {
-    cancelAll()
 }

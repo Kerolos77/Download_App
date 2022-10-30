@@ -13,7 +13,7 @@
         android:id="@+id/cloud_download_image"
         android:layout_width="0dp"
         android:layout_height="150dp"
-        android:contentDescription="@string/kk"
+        android:contentDescription="@string/download_image"
 
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.6"

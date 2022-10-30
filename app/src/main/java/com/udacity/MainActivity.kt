@@ -5,7 +5,6 @@ import android.app.DownloadManager
 import android.app.DownloadManager.Query
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,13 +15,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.util.Log
 import android.view.View
 import android.widget.RadioButton
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationCompat
 import kotlinx.android.synthetic.main.activity_main.*
 import java.io.File
 
@@ -33,18 +30,11 @@ enum class DownloadState (val value: String) {
 class MainActivity : AppCompatActivity() {
 
     private var downloadID: Long = 0
-    private var selectedGitHubRepository: String? = null
-    private var selectedGitHubFileName: String? = null
-    lateinit var loadingButton: LoadingButton
+    private var selectedUrl: String? = null
+    private var selectedUrlName: String? = null
+    lateinit var customButton: LoadingButton
 
-    private lateinit var notificationManager: NotificationManager
-    private lateinit var pendingIntent: PendingIntent
-    private lateinit var action: NotificationCompat.Action
-
-    companion object {
-        private const val CHANNEL_ID = "channelId"
-
-    }
+    private lateinit var manager: NotificationManager
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,9 +44,9 @@ class MainActivity : AppCompatActivity() {
 
         registerReceiver(receiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
 
-        loadingButton = findViewById(R.id.custom_button)
-        loadingButton.setLoadButtonState(ButtonState.Completed)
-        loadingButton.setOnClickListener {
+        customButton = findViewById(R.id.custom_button)
+        customButton.setCustomButtonState(ButtonState.Completed)
+        customButton.setOnClickListener {
             download()
         }
 
@@ -68,16 +58,15 @@ class MainActivity : AppCompatActivity() {
                 channelId,
                 channelName,
                 NotificationManager.IMPORTANCE_HIGH
-            )
-        notificationChannel.enableLights(true)
-        notificationChannel.lightColor = Color.RED
-        notificationChannel.enableVibration(true)
-        notificationChannel.description = "Download complete"
-        notificationManager.createNotificationChannel(notificationChannel)
+            ).apply {
+                enableLights(true)
+                lightColor = Color.RED
+                enableVibration(true)
+                description = "Download complete"
+            }
+        manager.createNotificationChannel(notificationChannel)
 
     }
-
-
 
     private val receiver = object : BroadcastReceiver() {
         @SuppressLint("Range")
@@ -94,12 +83,12 @@ class MainActivity : AppCompatActivity() {
                         if(cursor.count>0){
                             val status=cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
                             if (status == DownloadManager.STATUS_SUCCESSFUL){
-                                loadingButton.setLoadButtonState(ButtonState.Completed)
-                                notificationManager.sendNotification(selectedGitHubFileName.toString(), applicationContext, DownloadState.SUCCESS.value)
+                                customButton.setCustomButtonState(ButtonState.Completed)
+                                this@MainActivity.manager.sendNotification(selectedUrlName.toString(), applicationContext, DownloadState.SUCCESS.value)
                             }
                             else{
-                                loadingButton.setLoadButtonState(ButtonState.Completed)
-                                notificationManager.sendNotification(selectedGitHubFileName.toString(), applicationContext, DownloadState.FAILURE.value)
+                                customButton.setCustomButtonState(ButtonState.Completed)
+                                this@MainActivity.manager.sendNotification(selectedUrlName.toString(), applicationContext, DownloadState.FAILURE.value)
                             }
                         }
                     }
@@ -110,65 +99,65 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun download() {
-        loadingButton.setLoadButtonState(ButtonState.Clicked)
+        customButton.setCustomButtonState(ButtonState.Clicked)
 
-        if(selectedGitHubRepository != null){
-            loadingButton.setLoadButtonState(ButtonState.Loading)
-            notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if(selectedUrl != null){
+            customButton.setCustomButtonState(ButtonState.Loading)
+            manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             createChannel(getString(R.string.download_notification_channel_id), getString(R.string.download_notification_channel_name))
 
             val file = File(getExternalFilesDir(null),"/repos")
-
             if(!file.exists()){
                 file.mkdirs()
             }
             val request =
-                DownloadManager.Request(Uri.parse(selectedGitHubRepository))
+                DownloadManager.Request(Uri.parse(selectedUrl))
                     .setTitle(getString(R.string.app_name))
                     .setDescription(getString(R.string.app_description))
-                    .setRequiresCharging(false)
                     .setAllowedOverMetered(true)
                     .setAllowedOverRoaming(true)
-                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/repos/$selectedGitHubFileName.zip")
+                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "/repos/$selectedUrlName.zip")
 
             val downloadManager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             downloadID = downloadManager.enqueue(request)
         }else{
-            loadingButton.setLoadButtonState(ButtonState.Completed)
-            showToast(getString(R.string.noRepotSelectedText))
+            customButton.setCustomButtonState(ButtonState.Completed)
+            toast(getString(R.string.no_url_selected_text))
         }
 
         }
 
     fun onRadioButtonClicked(view: View) {
         if (view is RadioButton) {
-            // Is the button now checked?
-            val checked = view.isChecked
-
-            // Check which radio button was clicked
-            when (view.getId()) {
-                R.id.glide ->
-                    if (checked) {
-                        selectedGitHubRepository = getString(R.string.glideGithubURL)
-                        selectedGitHubFileName = getString(R.string.glide)
-                    }
-                R.id.load_app ->
-                    if (checked) {
-                        selectedGitHubRepository = getString(R.string.loadAppGithubURL)
-                        selectedGitHubFileName = getString(R.string.load_app)
-                    }
-                R.id.retrofit ->
-                    if (checked) {
-                        selectedGitHubRepository = getString(R.string.retrofitGithubURL)
-                        selectedGitHubFileName = getString(R.string.retrofit)
-                    }
+            if (view.isChecked) {
+                when (view.getId()) {
+                    R.id.glide ->
+                            setUrlAndName(
+                                getString(R.string.glide_url),
+                                getString(R.string.glide)
+                            )
+                    R.id.load_app ->
+                            setUrlAndName(
+                                getString(R.string.load_app_url),
+                                getString(R.string.load_app)
+                            )
+                    R.id.retrofit ->
+                            setUrlAndName(
+                                getString(R.string.retrofit_url),
+                                getString(R.string.retrofit)
+                            )
+                }
             }
         }
     }
 
-    private fun showToast(text: String) {
-        val toast = Toast.makeText(this, text, Toast.LENGTH_SHORT)
-        toast.show()
+    private fun setUrlAndName(url: String, name: String){
+        selectedUrl = url
+        selectedUrlName = name
+    }
+
+    private fun toast(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
     }
 
 }
