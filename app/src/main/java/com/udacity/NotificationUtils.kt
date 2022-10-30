@@ -8,7 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 
 
-private val NOTIFICATION_ID = 0
+private const val NOTIFICATION_ID = 0
 
 @SuppressLint("UnspecifiedImmutableFlag")
 fun NotificationManager.sendNotification(
